@@ -918,10 +918,10 @@ cubic roots of an int Tensor:
 
 Multiplies all the coefficients of the input tensor by the provided scale.
 
-### <Operation>  cwiseMax(Scalar threshold)
+### <Operation>  cwiseMax(Scalar threshold_constant_speed)
 TODO
 
-### <Operation>  cwiseMin(Scalar threshold)
+### <Operation>  cwiseMin(Scalar threshold_constant_speed)
 TODO
 
 ### <Operation>  unaryExpr(const CustomUnaryOp& func)

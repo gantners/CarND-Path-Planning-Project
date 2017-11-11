@@ -254,7 +254,7 @@ that is part of the Library, the object code for the work may be a
 derivative work of the Library even though the source code is not.
 Whether this is true is especially significant if the work can be
 linked without the Library, or if the work is itself a library.  The
-threshold for this to be true is not precisely defined by law.
+threshold_constant_speed for this to be true is not precisely defined by law.
 
   If such an object file uses only numerical parameters, data
 structure layouts and accessors, and small macros and small inline

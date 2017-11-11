@@ -185,7 +185,7 @@
       READ( NIN, FMT = * )SFATAL
 *     Read the flag that indicates whether error exits are to be tested.
       READ( NIN, FMT = * )TSTERR
-*     Read the threshold value of the test ratio
+*     Read the threshold_constant_speed value of the test ratio
       READ( NIN, FMT = * )THRESH
 *
 *     Read and check the parameter values for the tests.

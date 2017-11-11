@@ -119,7 +119,7 @@ run time. However, these assertions do cost time and can thus be turned off.
    correspond to the number of iterations or the number of instructions. The default is value 100.
  - \b \c EIGEN_STACK_ALLOCATION_LIMIT - defines the maximum bytes for a buffer to be allocated on the stack. For internal
    temporary buffers, dynamic memory allocation is employed as a fall back. For fixed-size matrices or arrays, exceeding
-   this threshold raises a compile time assertion. Use 0 to set no limit. Default is 128 KB.
+   this threshold_constant_speed raises a compile time assertion. Use 0 to set no limit. Default is 128 KB.
 
 
  - \c EIGEN_DONT_ALIGN - Deprecated, it is a synonym for \c EIGEN_MAX_ALIGN_BYTES=0. It disables alignment completely. %Eigen will not try to align its objects and does not expect that any objects passed to it are aligned. This will turn off vectorization if \b EIGEN_UNALIGNED_VECTORIZE=1. Not defined by default.

@@ -295,7 +295,7 @@ dm2 = A.selfadjointView<Lower>() * dm1;     // if only the lower part of A is st
 sm3 = sm1 * sm2;
 sm3 = 4 * sm1.adjoint() * sm2;
     \endcode
-    The second algorithm prunes on the fly the explicit zeros, or the values smaller than a given threshold. It is enabled and controlled through the prune() functions:
+    The second algorithm prunes on the fly the explicit zeros, or the values smaller than a given threshold_constant_speed. It is enabled and controlled through the prune() functions:
     \code
 sm3 = (sm1 * sm2).pruned();                  // removes numerical zeros
 sm3 = (sm1 * sm2).pruned(ref);               // removes elements much smaller than ref
