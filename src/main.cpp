@@ -19,6 +19,15 @@ using namespace std;
 // for convenience
 using json = nlohmann::json;
 
+struct val_lc {
+    double d_min, d_max;
+    double s_min, s_max;
+};
+
+bool is_within(double d, double s, val_lc other) {
+    return d > other.d_min && d < other.d_max && s > other.s_min && s < other.s_max;
+}
+
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
 
@@ -348,12 +357,16 @@ int main() {
                             //logic
 
                             bool too_close = false;
-
-
-                            double dist_back = 30.0; // warn
+                            int next_lane = lane;
+                            bool f_occupying_left = false;
+                            bool f_occupying_right = false;
+                            double dist_back = 20.0;
+                            double dist_front = 20.0;
                             double target_vel = 49.5;
                             double speed_step = .224;
                             double m_per_s = .02;
+
+                            double min_dist = 100.0;
 
                             for (int i = 0; i < sensor_fusion.size(); i++) {
                                 auto f_car = sensor_fusion[i];
@@ -370,17 +383,55 @@ int main() {
                                 //Check cars movement speed
                                 double speed_diff = check_car_s - (double)f_car[5];
                                 double distance_to_my_car = check_car_s - car_s;
+
+                                min_dist = min(min_dist,distance_to_my_car);
+
                                 bool in_front = distance_to_my_car >= 0;
                                 bool my_lane = lane == get_lane(check_car_d);
 
                                 //check s values greater than mine and s gap
                                 if (in_front) {
                                     if(my_lane){
-                                        if(distance_to_my_car < dist_back && distance_to_my_car){
+                                        if(distance_to_my_car < dist_front && distance_to_my_car){
                                            /* cout << "Approaching car id " << f_car[0] << " - Collision in " << distance_to_car << endl;*/
                                             too_close = true;
                                             //cout << check_speed << ","  << vx <<  "," << vy << ", " << orientation << endl;
                                         }
+                                    }
+                                }
+
+                                //if lange change possible change lanes, otherwise slow down
+                                for (int j = 0; j < sensor_fusion.size(); j++) {
+                                    auto f2_car = sensor_fusion[j];
+                                    float f_s = f2_car[5];
+                                    float f_d = f2_car[6];
+
+                                    //Calculate area of safe lane change and check if any car is occupying this space
+                                    val_lc l;
+                                    l.s_min = car_s - dist_back;
+                                    l.s_max = car_s + dist_front;
+
+                                    switch (lane) {
+                                        case 0:
+                                            f_occupying_left |= true;
+                                            l.d_min = 4.0;
+                                            l.d_max = 8.0;
+                                            f_occupying_right |= is_within(f_d, f_s, l);
+                                            break;
+                                        case 1:
+                                            l.d_min = 0.0;
+                                            l.d_max = 4.0;
+                                            f_occupying_left |= is_within(f_d, f_s, l);
+                                            l.d_min = 8.0;
+                                            l.d_max = 12.0;
+                                            f_occupying_right |= is_within(f_d, f_s, l);
+                                            break;
+                                        case 2:
+                                            l.d_min = 4.0;
+                                            l.d_max = 8.0;
+                                            f_occupying_left |= is_within(f_d, f_s, l);
+                                            f_occupying_right |= true;
+                                            break;
                                     }
                                 }
                             }
@@ -397,9 +448,23 @@ int main() {
                              */
 
                             if (too_close) {
-                                ref_vel -= speed_step;
+                                if (f_occupying_left && f_occupying_right) {
+                                    cout << "Lane change not possible." << endl;
+                                    if(min_dist < 2.0) {
+                                        cout << "Emergency brake!" << endl;
+                                        ref_vel /= 2;
+                                    }
+                                    else{
+                                        ref_vel -= speed_step;
+                                    }
+
+                                } else {
+                                    lane = f_occupying_left ? lane + 1 : lane - 1;
+                                    cout << "safe to change lane to " << lane << endl;
+                                }
+                            }
                                 //Otherwise accelerate
-                            }else if (ref_vel < target_vel) {
+                            else if (ref_vel < target_vel) {
                                 ref_vel += speed_step;
                             }
 
