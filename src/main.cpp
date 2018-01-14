@@ -12,7 +12,6 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
-#include "GNB.h"
 
 using namespace std;
 
@@ -148,8 +147,7 @@ vector<double> getFrenet(double x, double y, double theta, const vector<double> 
 }
 
 // Transform from Frenet s,d coordinates to Cartesian x,y
-vector<double>
-getXY(double s, double d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y) {
+vector<double> getXY(double s, double d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y) {
     int prev_wp = -1;
 
     while (s > maps_s[prev_wp + 1] && (prev_wp < (int) (maps_s.size() - 1))) {
@@ -185,84 +183,10 @@ int get_lane(double d){
         return -1;
 }
 
-vector<vector<double> > Load_State(string file_name)
-{
-    ifstream in_state_(file_name.c_str(), ifstream::in);
-    vector< vector<double >> state_out;
-    string line;
 
-
-    while (getline(in_state_, line))
-    {
-        istringstream iss(line);
-        vector<double> x_coord;
-
-        string token;
-        while( getline(iss,token,','))
-        {
-            x_coord.push_back(stod(token));
-        }
-        state_out.push_back(x_coord);
-    }
-    return state_out;
-}
-vector<string> Load_Label(string file_name)
-{
-    ifstream in_label_(file_name.c_str(), ifstream::in);
-    vector< string > label_out;
-    string line;
-    while (getline(in_label_, line))
-    {
-        istringstream iss(line);
-        string label;
-        iss >> label;
-
-        label_out.push_back(label);
-    }
-    return label_out;
-
-}
-
-void train_classifier(GNB &gnb){
-    cout << "training classifier" << endl;
-    vector< vector<double> > X_train = Load_State("../data/train_states.txt");
-    vector< vector<double> > X_test  = Load_State("../data/test_states.txt");
-    vector< string > Y_train  = Load_Label("../data/train_labels.txt");
-    vector< string > Y_test   = Load_Label("../data/test_labels.txt");
-
-   /* cout << "X_train number of elements " << X_train.size() << endl;
-    cout << "X_train element size " << X_train[0].size() << endl;
-    cout << "Y_train number of elements " << Y_train.size() << endl;*/
-
-    gnb.train(X_train, Y_train);
-
-   /* cout << "X_test number of elements " << X_test.size() << endl;
-    cout << "X_test element size " << X_test[0].size() << endl;
-    cout << "Y_test number of elements " << Y_test.size() << endl;*/
-
-    /*int score = 0;
-    for(int i = 0; i < X_test.size(); i++)
-    {
-        vector<double> coords = X_test[i];
-        string predicted = gnb.predict(coords);
-        if(predicted.compare(Y_test[i]) == 0)
-        {
-            score += 1;
-        }
-    }
-
-    float fraction_correct = float(score) / Y_test.size();
-    cout << "You got " << (100*fraction_correct) << " correct" << endl;*/
-
-    cout << "Classifier ready." << endl;
-}
 
 int main() {
     uWS::Hub h;
-
-    GNB gnb = GNB();
-
-    train_classifier(gnb);
 
     // Load up map values for waypoint's x,y,s and d normalized normal vectors
     vector<double> map_waypoints_x;
@@ -301,9 +225,10 @@ int main() {
 
     double ref_vel = 0.0;
     int lane = 1;
+    double prev_distance = 0.0;
 
     h.onMessage(
-            [&gnb, &ref_vel, &map_waypoints_x, &map_waypoints_y, &map_waypoints_s, &map_waypoints_dx, &map_waypoints_dy, &lane](
+            [&ref_vel, &map_waypoints_x, &map_waypoints_y, &map_waypoints_s, &map_waypoints_dx, &map_waypoints_dy, &lane, &prev_distance](
                     uWS::WebSocket <uWS::SERVER> ws, char *data, size_t length,
                     uWS::OpCode opCode) {
                 // "42" at the start of the message means there's a websocket message event.
@@ -360,13 +285,14 @@ int main() {
                             int next_lane = lane;
                             bool f_occupying_left = false;
                             bool f_occupying_right = false;
-                            double dist_back = 20.0;
+                            double dist_back = 25.0;
                             double dist_front = 20.0;
                             double target_vel = 49.5;
                             double speed_step = .224;
                             double m_per_s = .02;
+                            double safety_dist = 15.0;
 
-                            double min_dist = 100.0;
+                            double min_dist = dist_front;
 
                             for (int i = 0; i < sensor_fusion.size(); i++) {
                                 auto f_car = sensor_fusion[i];
@@ -384,15 +310,16 @@ int main() {
                                 double speed_diff = check_car_s - (double)f_car[5];
                                 double distance_to_my_car = check_car_s - car_s;
 
-                                min_dist = min(min_dist,distance_to_my_car);
-
                                 bool in_front = distance_to_my_car >= 0;
                                 bool my_lane = lane == get_lane(check_car_d);
+
+                                if(in_front)
+                                    min_dist = min(min_dist,distance_to_my_car);
 
                                 //check s values greater than mine and s gap
                                 if (in_front) {
                                     if(my_lane){
-                                        if(distance_to_my_car < dist_front && distance_to_my_car){
+                                        if(distance_to_my_car < dist_front){
                                            /* cout << "Approaching car id " << f_car[0] << " - Collision in " << distance_to_car << endl;*/
                                             too_close = true;
                                             //cout << check_speed << ","  << vx <<  "," << vy << ", " << orientation << endl;
@@ -449,24 +376,34 @@ int main() {
 
                             if (too_close) {
                                 if (f_occupying_left && f_occupying_right) {
-                                    cout << "Lane change not possible." << endl;
-                                    if(min_dist < 2.0) {
-                                        cout << "Emergency brake!" << endl;
-                                        ref_vel /= 2;
+                                    //cout << "Lane change not possible." << endl;
+                                    if(prev_distance > min_dist || min_dist < safety_dist) {
+                                        if (min_dist < safety_dist) {
+                                            ref_vel -= 1.2 * speed_step;
+                                            //cout << "Deccelerate too close" << endl;
+                                        } else {
+                                            ref_vel -= speed_step;
+                                            //cout << "Deccelerate" << endl;
+                                         }
                                     }
                                     else{
-                                        ref_vel -= speed_step;
+                                        //Accelerate again we're need to keep same speed as car in front
+                                        ref_vel += 1.2 * speed_step;
+                                        //cout << "Accelerate" << endl;
                                     }
 
                                 } else {
                                     lane = f_occupying_left ? lane + 1 : lane - 1;
-                                    cout << "safe to change lane to " << lane << endl;
+                                    cout << "Changing lane to " << lane << endl;
                                 }
                             }
                                 //Otherwise accelerate
                             else if (ref_vel < target_vel) {
                                 ref_vel += speed_step;
+                                //cout << "Accelerate" << endl;
                             }
+
+                            prev_distance = min_dist;
 
                             //cout << "target_vel: " << target_vel << ", ref_vel: " << ref_vel << endl;
 
