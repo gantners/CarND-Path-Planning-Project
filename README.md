@@ -1,5 +1,71 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
+
+## Video
+[![Link to youtube](https://www.youtube.com/watch?v=5olKXUQ9WVI/0.jpg)](https://www.youtube.com/watch?v=5olKXUQ9WVI)
+
+## My Implementation
+
+The path planner developed consists of 3 core components:
+
+The waypoint generator for predicting trajectory of the car in respect to the lane 
+in which the car is currently in and to which it wants to go.
+
+A logic component for accelerating and braking depending on blocking cars along
+the way.
+
+A logic component for deciding whether we are able to overtake the blocking vehicle
+in front of us.
+
+## Waypoint generator
+
+The ego vehicle trajectory is based on the solution from the walkthrough.
+The idea behind that is, that we use tangent paths from previous waypoints to predict 
+waypoints into the future by looking at the x,y coordinates and the heading of the ego vehicle.
+To smoothen those predicted points a spline library is used. So we always only need to generate the
+remaining waypoints, as we most of the time have previous waypoints left from the simulator 
+which where not yet visited by the ego vehicle.
+
+Those future and previous waypoints are evenly spaced on the spline that we are able to drive at 
+our desired target velocity. In this case we used a horizon of 30m and 50 waypoints to reach
+the target velocity of 49.5 which is just below the speed limit.
+
+
+## Logic component
+
+Settings
+
+``` python
+double dist_back = 25.0; # Distance to cars behind ego vehicle's s for overtaking
+double dist_front = 20.0; # Distance to cars in the front of the ego vehicle's s for overtaking
+double target_vel = 49.5; # Desired velocity to maintain
+double speed_step = .224; # Increase or decrease speed by this step
+double m_per_s = .02; # Current m/s
+double safety_dist = 15.0; # Safety distance to maintain while following a vehicle
+```                    
+        
+The acceleration and deceleration is managed in .224 steps based on the fact if a vehicle 
+is in the buffer zone or not. When reaching the safety distance a factor of 1.2 is used
+to do a faster deceleration to avoid bumping into the front car.
+
+The lane changing logic is triggered if a vehicle is within our buffer zone in front of us.
+Then we look whether a lane is to the left or to the right which is free of vehicles in a 
+square of dist_front to dist_back around our ego vehicle.
+
+If so a lane change is started and the trajectory planned accordingly.
+
+## Problems
+
+The current waypoint generator is vulnerable for violating maximum acceleration when overtaking 
+in sharp curves as we gain at the moment of lane changing a little extra speed and the desired
+velocity is set nearly to the maximum allowed.
+
+Also the car is not prepared for emergency braking cars while we are following them. 
+Here the current solution is likely to just bump into it or scratch them while trying to overtake
+in the very last moment.
+
+
+## Project original Read.Me
    
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
